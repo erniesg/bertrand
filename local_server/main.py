@@ -21,6 +21,16 @@ from starlette.responses import FileResponse
 from models.models import DocumentMetadata, Source
 from fastapi.middleware.cors import CORSMiddleware
 
+from dotenv import load_dotenv
+import os
+
+# Load the .env file
+load_dotenv()
+
+# Now you can access the environment variables:
+DATASTORE = os.getenv('DATASTORE')
+BEARER_TOKEN = os.getenv('BEARER_TOKEN')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 app = FastAPI()
 

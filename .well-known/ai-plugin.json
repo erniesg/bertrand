@@ -1,19 +1,18 @@
 {
   "schema_version": "v1",
-  "name_for_model": "retrieval",
-  "name_for_human": "Retrieval Plugin",
-  "description_for_model": "Plugin for searching through the user's documents (such as files, emails, and more) to find answers to questions and retrieve relevant information. Use it whenever a user asks something that might be found in their personal information.",
-  "description_for_human": "Search through your documents.",
+  "name_for_model": "betrand",
+  "name_for_human": "Betrand Serves",
+  "description_for_model": "A plugin for automatically downloading and creating datasets out of podcasts, YouTube videos, documents, files, emails and so forth to query and generate social media content over.",
+  "description_for_human": "Automatically download, create datasets and generate social media content.",
   "auth": {
-    "type": "user_http",
-    "authorization_type": "bearer"
+    "type": "none"
   },
   "api": {
     "type": "openapi",
-    "url": "https://your-app-url.com/.well-known/openapi.yaml",
-    "has_user_authentication": false
+    "url": "http://localhost:3333/.well-known/openapi.yaml"
   },
-  "logo_url": "https://your-app-url.com/.well-known/logo.png",
-  "contact_email": "hello@contact.com", 
-  "legal_info_url": "http://example.com/legal-info"
+  "logo_url": "http://localhost:3333/.well-known/logo.png",
+  "contact_email": "hq@codefor.asia", 
+  "legal_info_url": "hq@codefor.asia"
 }
+
