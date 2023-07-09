@@ -23,14 +23,25 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from dotenv import load_dotenv
 import os
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 
 # Load the .env file
 load_dotenv()
 
-# Now you can access the environment variables:
+# Get the Key Vault URL from an environment variable
+KEY_VAULT_URL = os.getenv('KEY_VAULT_URL')
+
+# Create a credential object using the DefaultAzureCredential class
+credential = DefaultAzureCredential()
+
+# Create a SecretClient object
+secret_client = SecretClient(vault_url=KEY_VAULT_URL, credential=credential)
+
+# Retrieve the secrets
+BEARER_TOKEN = secret_client.get_secret("bearer-token").value
+OPENAI_API_KEY = secret_client.get_secret("openai-api").value
 DATASTORE = os.getenv('DATASTORE')
-BEARER_TOKEN = os.getenv('BEARER_TOKEN')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 app = FastAPI()
 

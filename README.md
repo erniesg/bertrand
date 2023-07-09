@@ -4,6 +4,15 @@
 
 Find an example video of a Retrieval Plugin that has access to the UN Annual Reports from 2018 to 2022 [here](https://cdn.openai.com/chat-plugins/retrieval-gh-repo-readme/Retrieval-Final.mp4).
 
+## How to Run this Locally
+
+* Follow the `poetry install` and Weaviate install instructions below
+* Make sure you have access to the Azure key vault `https://bertrand.vault.azure.net/`
+* Authenticate with `az login`
+* Make sure you have a running Weaviate instance
+* Run `poetry start dev` in the root directory
+* Go to ChatGPT and GPT-4 > Plugins > Plugin store > Develop your own plugin and enter the local server URL
+
 ## Introduction
 
 The ChatGPT Retrieval Plugin repository provides a flexible solution for semantic search and retrieval of personal or organizational documents using natural language queries. The repository is organized into several directories:
