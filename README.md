@@ -12,6 +12,7 @@ Find an example video of a Retrieval Plugin that has access to the UN Annual Rep
 * Make sure you have a running Weaviate instance
 * Run `poetry start dev` in the root directory
 * Go to ChatGPT and GPT-4 > Plugins > Plugin store > Develop your own plugin and enter the local server URL
+* Note: you will require packages such as `whisper` and `ffmpeg`
 
 ## Introduction
 
