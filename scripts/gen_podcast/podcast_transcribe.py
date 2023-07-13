@@ -26,7 +26,7 @@ num_to_transcribe = df_downloaded[~df_downloaded['id'].isin(df_transcriptions['i
 with tqdm(total=num_to_transcribe, desc="Transcribing files") as pbar:
     for idx, row in df_downloaded.iterrows():
         # Check if the episode is already transcribed
-        if row['id'] not in df_transcriptions['id'].values:
+        if row['id'] not in df_transcriptions['id'].values and row['transcribed'] != 1:
             # Construct the path to the mp3 file
             mp3_file_path = os.path.join(row['filepath'], row['filename'])
             # Print the mp3 file path
