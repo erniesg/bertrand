@@ -222,6 +222,39 @@ today = datetime.now().strftime('%d%m%Y')
 # Save the DataFrame to a CSV file with today's date in the filename
 df_downloaded.to_csv(os.path.join(csv_dir, f'{today}_downloaded_episodes.csv'))
 
+# Add a 'transcribed' column if it doesn't exist
+if 'transcribed' not in df_downloaded.columns:
+    df_downloaded['transcribed'] = 0
+
+# Check for existing transcriptions
+with tqdm(total=df_downloaded.shape[0], desc="Checking files") as pbar:
+    for idx, row in df_downloaded.iterrows():
+        # Check if filename is not NaN
+        if pd.notnull(row['filename']):
+            # Check if filename is a string
+            if isinstance(row['filename'], str):
+                # Construct the path to the csv and txt files
+                base_filename = os.path.splitext(row['filename'])[0]  # Filename without .mp3
+                csv_file_path = os.path.join(row['filepath'], "csv", f"{base_filename}.csv")
+                txt_file_path = os.path.join(row['filepath'], "csv", f"{base_filename}.txt")
+
+                # Check if both files exist
+                if os.path.exists(csv_file_path) and os.path.exists(txt_file_path):
+                    df_downloaded.loc[df_downloaded['id'] == row['id'], 'transcribed'] = 1
+            else:
+                print(f"Unexpected filename value at index {idx}: {row['filename']}")
+        else:
+            print(f"NaN filename at index {idx}")
+
+        # Update progress bar
+        pbar.update(1)
+
+# Save the DataFrame to a CSV file with today's date in the filename
+df_downloaded.to_csv(os.path.join(csv_dir, f'{today}_downloaded_episodes_w_transcribed.csv'), index=False)
+
+# Print the DataFrame
+df_downloaded
+
 # import requests
 # import hashlib
 # import time
