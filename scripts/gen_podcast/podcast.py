@@ -337,13 +337,18 @@ def download_podcasts(api_key, api_secret):
 
 def transcribe_podcasts():
     # Setting up the device
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print(f"Is CUDA available: {torch.cuda.is_available()}") # This will print if CUDA is available
-    print(f"Using device: {device}") # This will print which device is being used
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        print("Using GPU for computations.")
+        fp16 = True  # Enable FP16 when using GPU
+    else:
+        device = torch.device("cpu")
+        print("CUDA not available. Using CPU for computations.")
+        fp16 = False  # Disable FP16 when using CPU
 
     # Load the whisper model
-    model = whisper.load_model("base.en").to(device)  # This line might fail if the model does not exist.
-    print(f"Is model on GPU: {next(model.parameters()).is_cuda}") # This will print if the model is loaded on GPU
+    model = whisper.load_model("base.en").to(device)
+    print(f"Is model on GPU: {next(model.parameters()).is_cuda}")
 
     # Get the latest downloaded episodes with transcriptions CSV file
     csv_dir = "../raw_data/csv"
@@ -364,7 +369,7 @@ def transcribe_podcasts():
 
     # Load the DataFrame from the CSV file
     df_downloaded = pd.read_csv(downloaded_episodes_csv)
-    
+
     # Filter for only downloaded episodes
     df_downloaded = df_downloaded[df_downloaded['downloaded'] == 1]
 
@@ -372,7 +377,10 @@ def transcribe_podcasts():
     try:
         df_transcriptions = pd.read_csv('../raw_data/csv/podcast_transcribed.csv')
     except FileNotFoundError:
-        df_transcriptions = pd.DataFrame(columns=['feed_id', 'feed_title', 'id', 'title', 'description', 'datePublished', 'datePublishedPretty', 'filepath', 'transcription', 'transcription_filepath', 'filename', 'transcribed'])
+        df_transcriptions = pd.DataFrame(columns=['feed_id', 'feed_title', 'id', 'title', 'description',
+                                                  'datePublished', 'datePublishedPretty', 'filepath',
+                                                  'transcription', 'transcription_filepath', 'filename',
+                                                  'transcribed'])
 
     # Number of new episodes to transcribe
     num_to_transcribe = df_downloaded[~df_downloaded['id'].isin(df_transcriptions['id'])].shape[0]
@@ -389,7 +397,7 @@ def transcribe_podcasts():
                 if os.path.exists(mp3_file_path):
                     try:
                         # Transcribe the mp3 file
-                        result = model.transcribe(mp3_file_path)
+                        result = model.transcribe(mp3_file_path, fp16=fp16)
                         # Append new row to the DataFrame
                         new_row = row.to_dict()
                         new_row['transcription'] = result['text']
@@ -418,9 +426,9 @@ def transcribe_podcasts():
                         pbar.update(1)
 
                     except Exception as e:
-                        print(f"Error processing file {row['filename']}: {e}")  # Debugging print statement
+                        print(f"Error transcribing {mp3_file_path}: {str(e)}")
                 else:
-                    print(f"File {row['filename']} not found!")  # Debugging print statement
+                    print(f"File not found: {mp3_file_path}")
 
     # Save the transcriptions DataFrame to a CSV file with today's date in the filename
     df_transcriptions.to_csv(os.path.join("../raw_data/csv", f'{today}_podcast_transcribed.csv'), index=False)
