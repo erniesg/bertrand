@@ -11,6 +11,7 @@ from azure.keyvault.secrets import SecretClient
 from datetime import datetime
 import whisper
 import torch
+import shutil
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Podcast Downloader and Transcriber')
@@ -337,6 +338,9 @@ def download_podcasts(api_key, api_secret):
     # Return the DataFrame
     return df_downloaded
 
+
+import shutil
+
 def transcribe_podcasts():
     # Setting up the device
     if torch.cuda.is_available():
@@ -357,7 +361,7 @@ def transcribe_podcasts():
     files = os.listdir(csv_dir)
     latest_file = None
 
-    # Find the latest "15072023_downloaded_episodes_w_transcribed.csv" file
+    # Find the latest "ddmmyy_downloaded_episodes_w_transcribed.csv" file
     for file in files:
         if file.endswith("_downloaded_episodes_w_transcribed.csv"):
             if latest_file is None or file > latest_file:
@@ -368,19 +372,20 @@ def transcribe_podcasts():
         return
 
     downloaded_episodes_csv = os.path.join(csv_dir, latest_file)
+    backup_file = downloaded_episodes_csv.replace(".csv", "_backup.csv")
+
+    # Make a copy of the latest downloaded_episodes_w_transcribed.csv file as a backup
+    shutil.copy2(downloaded_episodes_csv, backup_file)
+    print(f"Created a backup of the latest downloaded episodes with transcriptions CSV file: {backup_file}")
 
     # Load the DataFrame from the CSV file
     df_downloaded = pd.read_csv(downloaded_episodes_csv)
 
-    # Load transcribed DataFrame or initialize a new one
-    transcriptions_csv = "../raw_data/csv/podcast_transcribed.csv"
-    if os.path.isfile(transcriptions_csv):
-        df_transcriptions = pd.read_csv(transcriptions_csv)
-    else:
-        df_transcriptions = pd.DataFrame(columns=['feed_id', 'feed_title', 'id', 'title', 'description',
-                                                  'datePublished', 'datePublishedPretty', 'filepath',
-                                                  'transcription', 'transcription_filepath', 'filename',
-                                                  'transcribed'])
+    # Initialize the transcriptions DataFrame
+    df_transcriptions = pd.DataFrame(columns=['feed_id', 'feed_title', 'id', 'title', 'description',
+                                              'datePublished', 'datePublishedPretty', 'filepath',
+                                              'transcription', 'transcription_filepath', 'filename',
+                                              'transcribed'])
 
     # Check if transcript files exist for downloaded episodes
     for idx, row in df_downloaded.iterrows():
@@ -427,7 +432,7 @@ def transcribe_podcasts():
                     with open(txt_file_path, 'w') as f:
                         f.write(result['text'])
                     # Set 'transcribed' to 1
-                    row['transcribed'] = 1
+                    df_downloaded.at[idx, 'transcribed'] = 1
 
                     # Append new row to the list of rows
                     new_row = row.to_dict()
@@ -445,19 +450,12 @@ def transcribe_podcasts():
         if new_rows:
             df_transcriptions = pd.concat([df_transcriptions, pd.DataFrame(new_rows)], ignore_index=True)
 
-    # Save the transcriptions DataFrame to the transcriptions_csv file
-    df_transcriptions.to_csv(transcriptions_csv, index=False)
-
-    # Print the counts
-    print(f"Existing transcriptions: {num_existing_transcriptions}")
-    print(f"New episodes to transcribe: {num_to_transcribe}")
-
-    # Print the final transcriptions DataFrame
-    print(f"Final transcriptions dataframe contents:\n{df_transcriptions}")
+    # Overwrite the original file with the updated DataFrame
+    df_downloaded.to_csv(downloaded_episodes_csv, index=False)
+    print(f"Updated the original file: {downloaded_episodes_csv}")
 
     # Return the DataFrame
     return df_transcriptions
-
 
 
 def main():
