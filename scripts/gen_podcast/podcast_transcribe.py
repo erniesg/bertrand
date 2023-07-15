@@ -1,82 +1,118 @@
 import os
-import whisper
 import pandas as pd
-from tqdm import tqdm
+import requests
+import shutil
+import torch
+import whisper
 from datetime import datetime
+from tqdm import tqdm
 
-# Load the whisper model
-model = whisper.load_model("base.en")
+def transcribe_podcasts():
+    # Setting up the device
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        print("Using GPU for computations.")
+        fp16 = True  # Enable FP16 when using GPU
+    else:
+        device = torch.device("cpu")
+        print("CUDA not available. Using CPU for computations.")
+        fp16 = False  # Disable FP16 when using CPU
 
-# Load the DataFrame from the CSV file (NOTE: Update this to read the latest downloaded_episodes.csv)
-df_downloaded = pd.read_csv('../raw_data/csv/10072023_downloaded_episodes.csv')
+    # Load the whisper model
+    model = whisper.load_model("base.en").to(device)
+    print(f"Is model on GPU: {next(model.parameters()).is_cuda}")
 
-# Filter for only downloaded episodes
-df_downloaded = df_downloaded[df_downloaded['downloaded'] == 1]
+    # Create the base directory
+    base_dir = os.getenv('BASE_DIR')
+    os.makedirs(base_dir, exist_ok=True)
 
-# Load transcribed DataFrame or initialize a new one
-try:
-    df_transcriptions = pd.read_csv('../raw_data/csv/podcast_transcribed.csv')
-except FileNotFoundError:
-    df_transcriptions = pd.DataFrame(columns=['feed_id', 'feed_title', 'id', 'title', 'description', 'datePublished', 'datePublishedPretty', 'filepath', 'transcription', 'transcription_filepath', 'filename', 'transcribed'])
+    # Create the CSV directory within the base directory
+    csv_dir = os.path.join(base_dir, 'csv')
+    os.makedirs(csv_dir, exist_ok=True)
 
-# Number of new episodes to transcribe
-num_to_transcribe = df_downloaded[~df_downloaded['id'].isin(df_transcriptions['id'])].shape[0]
+    # Create the MP3 directory within the base directory
+    mp3_dir = os.path.join(base_dir, 'mp3')
+    os.makedirs(mp3_dir, exist_ok=True)
 
-# Cycle through all rows in df_downloaded and transcribe each mp3 file
-with tqdm(total=num_to_transcribe, desc="Transcribing files") as pbar:
+    # Get the latest downloaded episodes with transcriptions CSV file
+    files = os.listdir(csv_dir)
+    latest_file = None
+
+    # Find the latest "ddmmyy_downloaded_episodes_w_transcribed.csv" file
+    for file in files:
+        if file.endswith("_downloaded_episodes_w_transcribed.csv"):
+            if latest_file is None or file > latest_file:
+                latest_file = file
+
+    if latest_file is None:
+        print("No downloaded episodes with transcriptions CSV file found.")
+        return
+
+    downloaded_episodes_csv = os.path.join(csv_dir, latest_file)
+    backup_file = downloaded_episodes_csv.replace(".csv", "_backup.csv")
+
+    # Make a copy of the latest downloaded_episodes_w_transcribed.csv file as a backup
+    shutil.copy2(downloaded_episodes_csv, backup_file)
+    print(f"Created a backup of the latest downloaded episodes with transcriptions CSV file: {backup_file}")
+
+    # Load the DataFrame from the CSV file
+    df_downloaded = pd.read_csv(downloaded_episodes_csv)
+
+    # Check if transcript files exist for downloaded episodes
     for idx, row in df_downloaded.iterrows():
-        # Check if the episode is already transcribed
-        if row['id'] not in df_transcriptions['id'].values and row['transcribed'] != 1:
+        base_filename = os.path.splitext(row['filename'])[0]
+        txt_dir_path = os.path.join(csv_dir, row['feed_title'])  # Change csv_dir to txt_dir if you have a separate directory for text files
+        txt_file_path = os.path.join(txt_dir_path, f"{base_filename}.txt")
+
+        if os.path.exists(txt_file_path):
+            # Set 'transcribed' to 1
+            df_downloaded.at[idx, 'transcribed'] = 1
+
+    print(f"Final transcribed dataframe contents:\n{df_downloaded}")
+
+    # Count the number of existing transcriptions
+    num_existing_transcriptions = df_downloaded[df_downloaded['transcribed'] == 1].shape[0]
+
+    # Filter for only downloaded episodes that are not transcribed
+    df_to_transcribe = df_downloaded[df_downloaded['transcribed'] != 1]
+
+    # Number of new episodes to transcribe
+    num_to_transcribe = df_to_transcribe.shape[0]
+
+    print(f"{num_existing_transcriptions} existing transcriptions found. {num_to_transcribe} to be transcribed.")
+
+    # Cycle through episodes to transcribe and transcribe each mp3 file
+    with tqdm(total=num_to_transcribe, desc="Transcribing files") as pbar:
+        for idx, row in df_to_transcribe.iterrows():
             # Construct the path to the mp3 file
-            mp3_file_path = os.path.join(row['filepath'], row['filename'])
-            # Print the mp3 file path
-            print(f"MP3 file path: {mp3_file_path}")
+            mp3_file_path = os.path.join(mp3_dir, row['filepath'], row['filename'])
+
             # Check if the file exists
             if os.path.exists(mp3_file_path):
                 try:
                     # Transcribe the mp3 file
-                    print(f"Processing {row['filename']} of {row['title']}...")
-                    result = model.transcribe(mp3_file_path)
-
-                    # Append new row to the DataFrame
-                    new_row = row.to_dict()
-                    new_row['transcription'] = result['text']
-                    new_row['transcribed'] = 1
-
-                    # Create a directory for the transcriptions if it does not exist
-                    transcription_dir = os.path.join("../raw_data/csv", row['feed_title'])
-                    os.makedirs(transcription_dir, exist_ok=True)
-
-                    # Write the transcription to a .csv and .txt files
-                    base_filename = os.path.splitext(row['filename'])[0]  # Filename without .mp3
-                    csv_file_path = os.path.join(transcription_dir, f"{base_filename}.csv")
-                    txt_file_path = os.path.join(transcription_dir, f"{base_filename}.txt")
-                    transcription_df = pd.DataFrame([result['text']], columns=['transcription'])
-                    transcription_df.to_csv(csv_file_path, index=False)
+                    result = model.transcribe(mp3_file_path, fp16=fp16)
+                    # Write the transcription to a .txt files
+                    base_filename = os.path.splitext(row['filename'])[0]
+                    txt_dir_path = os.path.join(csv_dir, row['feed_title'])  # Change csv_dir to txt_dir if you have a separate directory for text files
+                    txt_file_path = os.path.join(txt_dir_path, f"{base_filename}.txt")
+                    os.makedirs(txt_dir_path, exist_ok=True)
                     with open(txt_file_path, 'w') as f:
                         f.write(result['text'])
-
-                    # Update the 'transcription_filepath' column
-                    new_row['transcription_filepath'] = transcription_dir
-
-                    # Append the new row to df_transcriptions
-                    df_transcriptions = df_transcriptions.append(new_row, ignore_index=True)
-
-                    print(f"Transcribed text: {result['text'][:100]}...")  # Show the first 100 characters of the transcription
+                    # Set 'transcribed' to 1
+                    df_downloaded.at[idx, 'transcribed'] = 1
 
                     # Update progress bar
                     pbar.update(1)
 
                 except Exception as e:
-                    print(f"Error processing file {row['filename']}: {e}")
+                    print(f"Error transcribing {mp3_file_path}: {str(e)}")
             else:
-                print(f"File {row['filename']} not found!")
+                print(f"File not found: {mp3_file_path}")
 
-# Get today's date in the format ddmmyyyy
-today = datetime.now().strftime('%d%m%Y')
+    # Overwrite the original file with the updated DataFrame
+    df_downloaded.to_csv(downloaded_episodes_csv, index=False)
+    print(f"Updated the original file: {downloaded_episodes_csv}")
 
-# Save the transcriptions DataFrame to a CSV file with today's date in the filename
-df_transcriptions.to_csv(os.path.join("../raw_data/csv", f'{today}_podcast_transcribed.csv'), index=False)
-
-# Print the DataFrame
-df_transcriptions
+    # Return the DataFrame
+    return df_downloaded
