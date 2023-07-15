@@ -40,6 +40,18 @@ def load_secrets():
     return api_key, api_secret
 
 def download_podcasts(api_key, api_secret):
+    # Create the base directory
+    base_dir = os.getenv('BASE_DIR')
+    os.makedirs(base_dir, exist_ok=True)
+
+    # Create the CSV directory within the base directory
+    csv_dir = os.path.join(base_dir, 'csv')
+    os.makedirs(csv_dir, exist_ok=True)
+
+    # Create the MP3 directory within the base directory
+    mp3_dir = os.path.join(base_dir, 'mp3')
+    os.makedirs(mp3_dir, exist_ok=True)
+
     # Define your strings
     user_agent = "erniesg"
 
@@ -61,7 +73,6 @@ def download_podcasts(api_key, api_secret):
         "X-Auth-Date": x_auth_date,
         "Authorization": hex_dig,
     }
-
 
     podcasts = [
         "The Ezra Klein Show",
@@ -128,8 +139,6 @@ def download_podcasts(api_key, api_secret):
         base_url_episodes = "https://api.podcastindex.org/api/1.0/episodes/byfeedid?id="
         response_episodes = requests.get(base_url_episodes + str(feed['id']), headers=headers)
         data_episodes = response_episodes.json()
-
-        # Update this part:
         episode_count = args.ai_episode_count if result['ai_only'] else args.non_ai_episode_count
         data_episodes['items'] = data_episodes['items'][:episode_count]
 
@@ -152,8 +161,6 @@ def download_podcasts(api_key, api_secret):
             }
             episodes.append(episode)
 
-
-    # ... rest of your code ...
     # Create a DataFrame from the results
     df = pd.DataFrame(results)
     print(f"Dataframe contents before saving to CSV:\n{df}")  # Debugging print statement
@@ -162,10 +169,6 @@ def download_podcasts(api_key, api_secret):
     df_episodes = pd.DataFrame(episodes)
     print(f"Episode dataframe contents before saving to CSV:\n{df_episodes}")  # Debugging print statement
     df_episodes
-
-    # Note: to update this to fetch the latest downloaded_episodes.csv
-    csv_dir = "../raw_data/csv"
-    os.makedirs(csv_dir, exist_ok=True)  # Create the directory if it doesn't exist
 
     files = os.listdir(csv_dir)
     latest_file = None
@@ -188,7 +191,7 @@ def download_podcasts(api_key, api_secret):
         downloaded_episodes_csv = os.path.join(csv_dir, latest_file)
         try:
             print(f"Trying to load 'df_downloaded' from CSV: {downloaded_episodes_csv}")
-            df_downloaded = pd.read_csv(downloaded_episodes_csv, index_col=0)
+            df_downloaded = pd.read_csv(downloaded_episodes_csv, index_col=0, encoding='utf-8')
             print(f"df_downloaded is: {df_downloaded}. Loaded 'df_downloaded' successfully.")
             # Print columns after loading CSV
             print("Columns in 'df_downloaded' after loading CSV:", df_downloaded.columns)
@@ -215,12 +218,6 @@ def download_podcasts(api_key, api_secret):
     df_downloaded['downloaded'] = df_downloaded['downloaded'].astype(int)
     df_downloaded['id'] = df_downloaded['id'].astype(str)
 
-    # Define the base directory for the downloads
-    base_dir = "../raw_data/mp3"
-
-    # Ensure the base directory exists
-    os.makedirs(base_dir, exist_ok=True)
-
     # Number of episodes that need to be downloaded
     df_episodes['id'] = df_episodes['id'].astype(int)
     df_downloaded['id'] = df_downloaded['id'].astype(int)
@@ -228,7 +225,7 @@ def download_podcasts(api_key, api_secret):
     new_episodes = df_episodes[~df_episodes['id'].isin(df_downloaded['id'])]
     print(new_episodes)
     num_to_download = new_episodes.shape[0]
-    num_existing_downloads = df_downloaded.shape[0] - num_to_download
+    num_existing_downloads = df_downloaded['downloaded'].sum()
 
     print(f"Number of new episodes to download: {num_to_download}")
     print(f"Number of existing downloaded episodes: {num_existing_downloads}")
@@ -247,7 +244,7 @@ def download_podcasts(api_key, api_secret):
             pbar.update(1)  # Move this line here, to only update the progress bar for episodes that are actually downloaded
 
             # Create a directory for the feed if it does not exist
-            feed_dir = os.path.join(base_dir, row['feed_title'])
+            feed_dir = os.path.join(mp3_dir, row['feed_title'])
             os.makedirs(feed_dir, exist_ok=True)
 
             # Download the media file
@@ -291,15 +288,11 @@ def download_podcasts(api_key, api_secret):
 
     df_downloaded
 
-    # Create CSV directory
-    csv_dir = "../raw_data/csv"
-    os.makedirs(csv_dir, exist_ok=True)
-
     # Get today's date in the format ddmmyyyy
     today = datetime.now().strftime('%d%m%Y')
 
     # Save the DataFrame to a CSV file with today's date in the filename
-    df_downloaded.to_csv(os.path.join(csv_dir, f'{today}_downloaded_episodes.csv'), index=False)
+    df_downloaded.to_csv(os.path.join(csv_dir, f'{today}_downloaded_episodes.csv'), index=False, encoding='utf-8')
 
     # Add a 'transcribed' column if it doesn't exist
     if 'transcribed' not in df_downloaded.columns:
@@ -329,7 +322,7 @@ def download_podcasts(api_key, api_secret):
             pbar.update(1)
 
     # Save the DataFrame to a CSV file with today's date in the filename
-    df_downloaded.to_csv(os.path.join(csv_dir, f'{today}_downloaded_episodes_w_transcribed.csv'), index=False)
+    df_downloaded.to_csv(os.path.join(csv_dir, f'{today}_downloaded_episodes_w_transcribed.csv'), index=False, encoding='utf-8')
 
     # Print the DataFrame
     print(f"Final downloaded dataframe contents:\n{df_downloaded}")  # Debugging print statement
@@ -337,9 +330,6 @@ def download_podcasts(api_key, api_secret):
 
     # Return the DataFrame
     return df_downloaded
-
-
-import shutil
 
 def transcribe_podcasts():
     # Setting up the device
@@ -356,8 +346,19 @@ def transcribe_podcasts():
     model = whisper.load_model("base.en").to(device)
     print(f"Is model on GPU: {next(model.parameters()).is_cuda}")
 
+    # Create the base directory
+    base_dir = os.getenv('BASE_DIR')
+    os.makedirs(base_dir, exist_ok=True)
+
+    # Create the CSV directory within the base directory
+    csv_dir = os.path.join(base_dir, 'csv')
+    os.makedirs(csv_dir, exist_ok=True)
+
+    # Create the MP3 directory within the base directory
+    mp3_dir = os.path.join(base_dir, 'mp3')
+    os.makedirs(mp3_dir, exist_ok=True)
+
     # Get the latest downloaded episodes with transcriptions CSV file
-    csv_dir = "../raw_data/csv"
     files = os.listdir(csv_dir)
     latest_file = None
 
@@ -381,22 +382,17 @@ def transcribe_podcasts():
     # Load the DataFrame from the CSV file
     df_downloaded = pd.read_csv(downloaded_episodes_csv)
 
-    # Initialize the transcriptions DataFrame
-    df_transcriptions = pd.DataFrame(columns=['feed_id', 'feed_title', 'id', 'title', 'description',
-                                              'datePublished', 'datePublishedPretty', 'filepath',
-                                              'transcription', 'transcription_filepath', 'filename',
-                                              'transcribed'])
-
     # Check if transcript files exist for downloaded episodes
     for idx, row in df_downloaded.iterrows():
         base_filename = os.path.splitext(row['filename'])[0]
-        csv_dir_path = os.path.join("../raw_data/csv", row['feed_title'])
-        csv_file_path = os.path.join(csv_dir_path, f"{base_filename}.csv")
-        txt_file_path = os.path.join(csv_dir_path, f"{base_filename}.txt")
+        txt_dir_path = os.path.join(csv_dir, row['feed_title'])  # Change csv_dir to txt_dir if you have a separate directory for text files
+        txt_file_path = os.path.join(txt_dir_path, f"{base_filename}.txt")
 
-        if os.path.exists(csv_file_path) and os.path.exists(txt_file_path):
+        if os.path.exists(txt_file_path):
             # Set 'transcribed' to 1
             df_downloaded.at[idx, 'transcribed'] = 1
+
+    print(f"Final transcribed dataframe contents:\n{df_downloaded}")
 
     # Count the number of existing transcriptions
     num_existing_transcriptions = df_downloaded[df_downloaded['transcribed'] == 1].shape[0]
@@ -411,32 +407,24 @@ def transcribe_podcasts():
 
     # Cycle through episodes to transcribe and transcribe each mp3 file
     with tqdm(total=num_to_transcribe, desc="Transcribing files") as pbar:
-        new_rows = []
         for idx, row in df_to_transcribe.iterrows():
             # Construct the path to the mp3 file
-            mp3_file_path = os.path.join(row['filepath'], row['filename'])
+            mp3_file_path = os.path.join(mp3_dir, row['filepath'], row['filename'])
 
             # Check if the file exists
             if os.path.exists(mp3_file_path):
                 try:
                     # Transcribe the mp3 file
                     result = model.transcribe(mp3_file_path, fp16=fp16)
-                    # Write the transcription to a .csv and .txt files
+                    # Write the transcription to a .txt files
                     base_filename = os.path.splitext(row['filename'])[0]
-                    csv_dir_path = os.path.join("../raw_data/csv", row['feed_title'])
-                    csv_file_path = os.path.join(csv_dir_path, f"{base_filename}.csv")
-                    txt_file_path = os.path.join(csv_dir_path, f"{base_filename}.txt")
-                    os.makedirs(csv_dir_path, exist_ok=True)
-                    transcription_df = pd.DataFrame([result['text']], columns=['transcription'])
-                    transcription_df.to_csv(csv_file_path, index=False)
+                    txt_dir_path = os.path.join(csv_dir, row['feed_title'])  # Change csv_dir to txt_dir if you have a separate directory for text files
+                    txt_file_path = os.path.join(txt_dir_path, f"{base_filename}.txt")
+                    os.makedirs(txt_dir_path, exist_ok=True)
                     with open(txt_file_path, 'w') as f:
                         f.write(result['text'])
                     # Set 'transcribed' to 1
                     df_downloaded.at[idx, 'transcribed'] = 1
-
-                    # Append new row to the list of rows
-                    new_row = row.to_dict()
-                    new_rows.append(new_row)
 
                     # Update progress bar
                     pbar.update(1)
@@ -446,17 +434,12 @@ def transcribe_podcasts():
             else:
                 print(f"File not found: {mp3_file_path}")
 
-        # Append the new rows to df_transcriptions using pandas.concat
-        if new_rows:
-            df_transcriptions = pd.concat([df_transcriptions, pd.DataFrame(new_rows)], ignore_index=True)
-
     # Overwrite the original file with the updated DataFrame
     df_downloaded.to_csv(downloaded_episodes_csv, index=False)
     print(f"Updated the original file: {downloaded_episodes_csv}")
 
     # Return the DataFrame
-    return df_transcriptions
-
+    return df_downloaded
 
 def main():
     # Load secrets
