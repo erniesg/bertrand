@@ -25,3 +25,10 @@ if __name__ == "__main__":
     load_dotenv()
 
     main()
+
+'''
+1. Add a way to insert new rows that already exist in .mp3 and .txt but not in the csv
+2. Add script to remove old csv that are no longer in use
+3. Validate that no. of .mp3 = no. of rows in df_downloaded, ideally no. of mp3 = no. of csv
+4. Consider validations/tests such that number of new episodes to be added == number of episodes to be transcribed, ie checked both ways
+'''

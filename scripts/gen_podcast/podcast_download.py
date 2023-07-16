@@ -176,6 +176,9 @@ def download_podcasts(api_key, api_secret, ai_episode_count, non_ai_episode_coun
         print("Initialized 'df_downloaded' successfully.")
     else:
         downloaded_episodes_csv = os.path.join(csv_dir, latest_file)
+        backup_file = downloaded_episodes_csv.replace('.csv', '_backup.csv')
+        shutil.copy(downloaded_episodes_csv, backup_file)
+        print(f"Backup file {backup_file} created.")
         try:
             print(f"Trying to load 'df_downloaded' from CSV: {downloaded_episodes_csv}")
             df_downloaded = pd.read_csv(downloaded_episodes_csv, index_col=0, encoding='utf-8')
@@ -242,7 +245,7 @@ def download_podcasts(api_key, api_secret, ai_episode_count, non_ai_episode_coun
 
                 # Download the media file
                 print(f"Downloading {row['enclosureUrl']} from {row['feed_title']}")
-                
+
                 try:
                     response = requests.get(row['enclosureUrl'], stream=True)
                     if response.status_code == 200:
@@ -273,7 +276,7 @@ def download_podcasts(api_key, api_secret, ai_episode_count, non_ai_episode_coun
                         # Update the 'filepath' and 'filename' columns with the path and name of the saved file
                         df_downloaded.loc[df_downloaded['id'] == row['id'], 'filepath'] = os.path.dirname(file_path)
                         df_downloaded.loc[df_downloaded['id'] == row['id'], 'filename'] = os.path.basename(file_path)
-                        
+
                         pbar.update(1)  # Update the progress bar for episodes that are actually downloaded
 
                     else:
