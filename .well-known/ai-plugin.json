@@ -5,14 +5,15 @@
   "description_for_model": "A plugin for automatically downloading and creating datasets out of podcasts, YouTube videos, documents, files, emails and so forth to query and generate social media content over.",
   "description_for_human": "Automatically download, create datasets and generate social media content.",
   "auth": {
-    "type": "none"
+    "type": "user_http",
+    "authorization_type": "bearer"
   },
   "api": {
     "type": "openapi",
-    "url": "http://localhost:3333/.well-known/openapi.yaml"
+    "url": "https://a0c4-156-59-0-77.ngrok-free.app/.well-known/openapi.yaml",
+    "has_user_authentication": false
   },
-  "logo_url": "http://localhost:3333/.well-known/logo.png",
+  "logo_url": "https://a0c4-156-59-0-77.ngrok-free.app/.well-known/logo.png",
   "contact_email": "hq@codefor.asia", 
   "legal_info_url": "hq@codefor.asia"
 }
-
