@@ -61,7 +61,8 @@ def validate_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sc
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://chat.openai.com"],  # Allow specific origin (in this case, OpenAI)
+    allow_origins=[f"http://{host}:{port}",
+    "https://chat.openai.com"],  # Allow specific origin (in this case, OpenAI)
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers

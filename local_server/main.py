@@ -4,6 +4,7 @@ from typing import Optional
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Body, UploadFile
 from loguru import logger
+import uuid
 
 from models.api import (
     DeleteRequest,
@@ -25,6 +26,12 @@ from dotenv import load_dotenv
 import os
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+import logging
+import traceback
+import openai
+# Create a logger for the upsert endpoint
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 # Load the .env file
 load_dotenv()
@@ -38,10 +45,21 @@ credential = DefaultAzureCredential()
 # Create a SecretClient object
 secret_client = SecretClient(vault_url=KEY_VAULT_URL, credential=credential)
 
-# Retrieve the secrets
-BEARER_TOKEN = secret_client.get_secret("bearer-token").value
-OPENAI_API_KEY = secret_client.get_secret("openai-api").value
-DATASTORE = os.getenv('DATASTORE')
+try:
+    # Retrieve the secrets
+    BEARER_TOKEN = secret_client.get_secret("bearer-token").value
+    OPENAI_API_KEY = secret_client.get_secret("openai-api").value
+    DATASTORE = os.getenv('DATASTORE')
+    # Set the API key
+    openai.api_key = OPENAI_API_KEY
+    # Print only the last 3 characters of each value
+    print("BEARER_TOKEN:", BEARER_TOKEN[-3:])
+    print("OPENAI_API_KEY:", OPENAI_API_KEY[-3:])
+    print("DATASTORE:", DATASTORE[-3:])
+
+except Exception as e:
+    # If an exception occurs, print the error message
+    print("Error fetching credentials:", e)
 
 app = FastAPI()
 
@@ -50,6 +68,7 @@ PORT = 3333
 origins = [
     f"http://localhost:{PORT}",
     "https://chat.openai.com",
+    "https://gestum.serveo.net",
 ]
 
 app.add_middleware(
@@ -108,21 +127,43 @@ async def upsert_file(
         raise HTTPException(status_code=500, detail=f"str({e})")
 
 
-@app.post(
-    "/upsert",
-    response_model=UpsertResponse,
-)
-async def upsert(
-    request: UpsertRequest = Body(...),
-):
+@app.post("/upsert", response_model=UpsertResponse)
+async def upsert(request: UpsertRequest = Body(...)):
     try:
+        logger.info("Received upsert request.")
+        logger.debug("Request Payload: %s", request.json())
+
+        # Generate unique IDs for each document in the request
+        for document in request.documents:
+            if document.id is None:
+                document.id = str(uuid.uuid4())  # Generate a new UUID
+
+        # Log details about the document being upserted
+        logger.debug("Request Payload (after UUID generation): %s", request.json())
+
+        # Upsert the validated documents to the datastore
         ids = await datastore.upsert(request.documents)
+
+        # Log the IDs of the upserted documents
+        logger.info("Upsert successful. IDs: %s", ids)
+
         return UpsertResponse(ids=ids)
+    except RetryError as retry_error:
+        # Log the RetryError and traceback
+        logger.error("RetryError occurred during upsert: %s", retry_error)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Retry Error occurred during upsert")
+    except AuthenticationError as auth_error:
+        # Log the AuthenticationError and traceback
+        logger.error("AuthenticationError occurred during upsert: %s", auth_error)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Authentication Error occurred during upsert")
     except Exception as e:
-        logger.error(e)
-        raise HTTPException(status_code=500, detail="Internal Service Error")
-
-
+        # Log the general exception and traceback
+        exc_traceback = traceback.format_exc()
+        logger.error("Error occurred during upsert: %s", e)
+        logger.error("Traceback:\n%s", exc_traceback)
+        raise HTTPException(status_code=500, detail="Internal Service Error\n" + exc_traceback)
 @app.post("/query", response_model=QueryResponse)
 async def query_main(request: QueryRequest = Body(...)):
     try:
@@ -162,7 +203,12 @@ async def delete(
 @app.on_event("startup")
 async def startup():
     global datastore
-    datastore = await get_datastore()
+    try:
+        datastore = await get_datastore()
+        logger.info("Datastore initialized successfully")
+    except Exception as e:
+        logger.error(f"Error occurred while initializing datastore: {e}")
+        raise
 
 
 def start():
