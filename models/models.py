@@ -9,6 +9,7 @@ class Source(str, Enum):
     chat = "chat"
     course = "course"
     book = "book"
+    podcast = "podcast"
 
 
 class DocumentMetadata(BaseModel):
