@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Union
 from enum import Enum
 
 
@@ -7,6 +7,8 @@ class Source(str, Enum):
     email = "email"
     file = "file"
     chat = "chat"
+    course = "course"
+    book = "book"
 
 
 class DocumentMetadata(BaseModel):
@@ -14,7 +16,9 @@ class DocumentMetadata(BaseModel):
     source_id: Optional[str] = None
     url: Optional[str] = None
     created_at: Optional[str] = None
-    author: Optional[str] = None
+    author: Optional[Union[str, List[str]]] = Field(
+        None, description="Document author(s)"
+    )
 
 
 class DocumentChunkMetadata(DocumentMetadata):

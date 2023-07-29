@@ -4,14 +4,55 @@ import os
 import json
 import argparse
 import asyncio
+import sys
 
 from loguru import logger
+from dotenv import load_dotenv
+
+# Load the .env file
+load_dotenv()
+
+# Read the PARENT_DIR environment variable
+parent_dir = os.environ.get("PARENT_DIR")
+
+# Check if the environment variable is set and not empty
+if parent_dir is None or parent_dir.strip() == "":
+    raise ValueError("PARENT_DIR environment variable is not set or is empty.")
+
+# Add the parent directory to the Python path
+sys.path.append(parent_dir)
+
 from models.models import Document, DocumentMetadata, Source
 from datastore.datastore import DataStore
 from datastore.factory import get_datastore
 from services.extract_metadata import extract_metadata_from_document
 from services.file import extract_text_from_filepath
 from services.pii_detection import screen_text_for_pii
+
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+import openai
+
+# Get the Key Vault URL from an environment variable
+KEY_VAULT_URL = os.getenv('KEY_VAULT_URL')
+
+# Create a credential object using the DefaultAzureCredential class
+credential = DefaultAzureCredential()
+
+# Create a SecretClient object
+secret_client = SecretClient(vault_url=KEY_VAULT_URL, credential=credential)
+
+try:
+    # Retrieve the secrets
+    OPENAI_API_KEY = secret_client.get_secret("openai-api").value
+    # Set the API key
+    openai.api_key = OPENAI_API_KEY
+    # Print only the last 3 characters of each value
+    print("OPENAI_API_KEY:", OPENAI_API_KEY[-3:])
+
+except Exception as e:
+    # If an exception occurs, print the error message
+    print("Error fetching credentials:", e)
 
 DOCUMENT_UPSERT_BATCH_SIZE = 50
 
@@ -49,6 +90,14 @@ async def process_file_dump(
 
                 # update metadata with custom values
                 for key, value in custom_metadata.items():
+                    if key == "author":
+                        # Convert the author value to a single string (if it's a list)
+                        if isinstance(value, list):
+                            value = ", ".join(value)
+                    # Ensure 'author' is a string, even if it contains multiple authors as a list
+                    if key == "author" and not isinstance(value, str):
+                        value = str(value)
+
                     if hasattr(metadata, key):
                         setattr(metadata, key, value)
 
