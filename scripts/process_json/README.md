@@ -22,3 +22,5 @@ The script will load the JSON file as a list of dictionaries, iterate over the d
 You can use `python process_json.py -h` to get a summary of the options and their descriptions.
 
 Test the script with the example file, [example.json](example.json).
+
+Sample run: `python process_json.py --filepath "podcast.json"`

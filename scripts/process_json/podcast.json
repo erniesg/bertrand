@@ -1,0 +1,32 @@
+[
+  {
+      "source": "podcast",
+      "source_id": "../../raw_data/csv/Exponent/15563363757.txt",
+      "created_at": "2022-12-09T17:29:00Z",
+      "author": "Ben Thompson"
+  },
+  {
+      "source": "podcast",
+      "source_id": "../../raw_data/csv/Exponent/4892789666.txt",
+      "created_at": "2021-11-05T08:14:00Z",
+      "author": "Ben Thompson"
+  },
+  {
+      "source": "podcast",
+      "source_id": "../../raw_data/csv/Exponent/4513286664.txt",
+      "created_at": "2021-10-18T04:14:00Z",
+      "author": "Ben Thompson"
+  },
+  {
+      "source": "podcast",
+      "source_id": "../../raw_data/csv/The Ezra Klein Show/15569336629.txt",
+      "created_at": "2023-07-11T04:00:00Z",
+      "author": "Ezra Klein"
+  },
+  {
+    "source": "podcast",
+    "source_id": "../../raw_data/csv/The Ezra Klein Show/15564005923.txt",
+    "created_at": "2023-05-26T04:00:00Z",
+    "author": "Ezra Klein"
+}
+]
