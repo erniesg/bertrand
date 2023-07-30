@@ -1,0 +1,12 @@
+[
+    {
+      "source": "course",
+      "source_id": "../../raw_data/test_dir/Week 6 Economic Growth/14.009x_Lecture6.2_Clip05_D1V3_220408_APPROVED2-en.txt",
+      "author": "'Abhijit Banerjee, Esther Duflo'"
+    },
+    {
+        "source": "course",
+        "source_id": "../../raw_data/test_dir/Week 6 Economic Growth/asset-v1_MITxT+14.009x+2T2022+type@asset+block@Economic_Growth.pdf",
+        "author": "'Abhijit Banerjee, Esther Duflo'"
+      }
+]

@@ -22,3 +22,5 @@ The script will extract the files from the zip file into a temporary directory n
 You can use `python process_zip.py -h` to get a summary of the options and their descriptions.
 
 Test the script with the example file, [example.zip](example.zip).
+
+Sample argument: `python process_zip.py --filepath "../../raw_data/test_dir/Week 6 Economic Growth/Week 6 Economic Growth.zip" --custom_metadata '{"source": "course", "author": "Abhijit Banerjee, Esther Duflo"}'`
