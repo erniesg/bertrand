@@ -140,5 +140,4 @@ dmypy.json
 # data and other files
 *.zip
 **/raw_data/
-../../backups/
-
+backups/
